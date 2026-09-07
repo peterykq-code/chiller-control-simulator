@@ -2,7 +2,11 @@
 
 An educational Python project for learning controls software engineering through a simplified chilled-water system.
 
-Stage 1 established a lumped water-temperature model, proportional control, and ten automated tests. Stage 2 adds an equipment operating sequence with OFF, STARTING, RUNNING, and FAULT states, cooling permission, flow proof, startup timeout, normal stop, fault priority, and safe reset.
+Stage 1 established a lumped water-temperature model and proportional control.
+Stage 2 added a tested equipment operating sequence with OFF, STARTING,
+RUNNING, and FAULT states. Stage 3 adds separate chilled-water supply and
+return temperatures, mass-flow heat transfer, a defined load-step experiment,
+and quantitative physics validation.
 
 This is an independent learning simulation. It is not connected to physical equipment and does not represent any manufacturer's control software.
 
@@ -23,6 +27,17 @@ Run all tests with:
 ```powershell
 python -m unittest discover -s tests -v
 ```
+
+Run the Stage 3 load-step experiment and regenerate its plot with:
+
+```powershell
+python stage3_main.py
+python plot_stage3.py
+```
+
+The Stage 3 runner writes `results/stage3.csv`. The plotting script reads that
+CSV and writes `docs/stage3-load-step-results.svg` using only the Python
+standard library.
 
 ## Demonstration scenario
 
@@ -51,6 +66,24 @@ requested cooling with the cooling permitted by the equipment state. The lower
 plot records the OFF, STARTING, RUNNING, and FAULT sequence. The plotted data is
 preserved in `results/stage2.csv`; `results/stage1.csv` retains the Stage 1
 baseline.
+
+## Stage 3 result
+
+![Stage 3 load-step validation](docs/stage3-load-step-results.svg)
+
+Stage 3 starts from the analytical steady state for a 30 kW building load,
+then increases the load to 50 kW at 10 simulated minutes. The final simulated
+CHWS temperature is 8.665 degC versus an analytical value of 8.667 degC. The
+final CHWR temperature is 11.055 degC versus an analytical value of 11.059
+degC. The maximum energy-conservation residual is approximately
+`3.5e-12 kJ`; changing the time step from 10 s to 5 s changes the final
+temperature by approximately `0.0003 degC`.
+
+The experiment therefore passes its analytical-temperature, total-energy, and
+time-step-sensitivity acceptance criteria. Its assumptions and derivation are
+recorded in [Stage 3 Engineering Basis](docs/STAGE3_ENGINEERING_BASIS.md).
+The [Stage 3 Tool Guide](docs/STAGE3_TOOL_GUIDE.md) explains how to run and
+inspect the Python program, tests, CSV data, SVG plot, and Git evidence.
 
 ## Control sequence
 
@@ -100,8 +133,12 @@ Flow loss has priority over a simultaneous normal stop so the abnormal event is 
 | `controller.py` | `update_equipment_state()` | Current state and Boolean start, stop, flow, timeout, and reset signals | Next equipment state |
 | `controller.py` | `apply_cooling_permission()` | Requested cooling fraction and equipment state | Applied cooling fraction from 0.0 to 1.0 |
 | `plant.py` | `update_temperature()` | Temperature, applied cooling, heat load, capacity, water mass, and time step | Temperature after one step |
+| `plant.py` | `calculate_flow_heat_transfer_kw()` | Mass flow in kg/s and CHWS/CHWR temperatures in degrees Celsius | Heat carried from return to supply in kW |
+| `plant.py` | `update_supply_return_temperatures()` | CHWS, CHWR, mass flow, load, cooling, node masses, and time step | CHWS and CHWR after one step |
 | `main.py` | `scenario_inputs()` | Simulation time in seconds | Reproducible command and flow signals |
 | `main.py` | `main()` | Fixed experiment settings | Terminal output and `results/stage2.csv` |
+| `stage3_main.py` | `run_experiment()` | Time step in seconds | Reproducible Stage 3 load-step samples |
+| `stage3_main.py` | `calculate_metrics()` | Stage 3 samples | Analytical, conservation, and settling metrics |
 
 The CSV records time, water temperature, setpoint, state, requested cooling, applied cooling, and the Boolean scenario inputs. This makes the reason for each response traceable.
 
@@ -152,16 +189,19 @@ temperature change = 30 * 10 / (1000 * 4.18)
 
 ## Verification
 
-The test suite contains 24 test methods:
+The test suite contains 32 test methods:
 
 - 10 retained Stage 1 tests for proportional control, the energy balance, validation, and the original closed loop.
 - 5 cooling-permission tests for supported states, boundaries, invalid inputs, and a connected thermal example.
 - 6 state-transition tests for startup, timeout, stop, running flow loss, fault priority, reset, and validation.
 - 3 runner tests that execute the real entry point in temporary directories, verify all 181 timestamps and key states, preserve a Stage 1 baseline file, check permission on every row, and independently recalculate every temperature step.
+- 8 Stage 3 tests for flow heat transfer, zero-flow behaviour, balanced node
+  heat rates, total-energy conservation, analytical steady state, load-step
+  convergence, and time-step sensitivity.
 
 Passing these scenarios verifies the stated educational model. It does not establish real-equipment performance, safety certification, or commissioning results.
 
-## Project limitations
+## Stage 2 model limitations
 
 - Supply and return temperatures are not modelled separately.
 - Heat load, water mass, and maximum cooling capacity are fixed.
@@ -170,6 +210,17 @@ Passing these scenarios verifies the stated educational model. It does not estab
 - STARTING represents flow-proof waiting only.
 - FAULT represents simplified loss of chilled-water flow; manufacturer protections are not reproduced.
 - The reset rule is an educational choice and not a site-specific operating sequence.
+
+## Stage 3 model limitations
+
+- Each side is represented by one well-mixed water mass.
+- Mass flow and available cooling capacity remain constant.
+- Pipe heat loss, pump heat, transport delay, sensor dynamics, valve dynamics,
+  and refrigerant behaviour are not modelled.
+- The Stage 3 experiment holds the equipment in RUNNING to isolate the thermal
+  response; the tested Stage 2 operating sequence remains a separate scenario.
+- Parameters are declared educational assumptions rather than selected design
+  values for a real building.
 
 ## Engineering development direction
 
@@ -185,11 +236,10 @@ The [Engineering Evidence Register](docs/ENGINEERING_EVIDENCE.md) links each
 completed stage from requirement and theory through implementation, test, result,
 interpretation, and limitations.
 
-The next planned stage is a physics and validation foundation: define the system
-boundary, introduce mass flow and separate chilled-water supply/return
-temperatures, run a defined load disturbance, calculate quantitative performance
-metrics, and verify energy conservation and timestep sensitivity. PI/PID, extra
-faults, multi-chiller staging, PLC code, and UI work remain later stages.
+Stage 3 establishes the physics and validation foundation. A future stage can
+compare proportional and PI control against explicit response criteria before
+translation to PLC Structured Text. Extra faults, multi-chiller staging, and UI
+work remain later stages.
 
 ## Portfolio explanation
 

@@ -59,20 +59,59 @@ Requirement -> theory -> engineering decision -> implementation
 
 ## EV-CHILLER-S3-001 — Physics and validation foundation
 
-- **Status:** Planned; this is not completed evidence.
+- **Status:** Implemented and verified locally.
+- **Requirement and acceptance criterion:** Represent mass-flow heat transfer
+  with separate CHWS and CHWR states. For a reproducible 30 to 50 kW load step,
+  final temperatures must be within 0.02 degC of the analytical steady state,
+  the maximum total-energy residual must be at most `1e-9 kJ`, and 5 s versus
+  10 s time steps must differ by at most 0.02 degC at the final sample.
 - **Engineering question:** How should mass flow, chilled-water supply/return
   temperatures, thermal storage, and a load disturbance be represented within a
   defined system boundary?
-- **Required theory:** `Q = m_dot * Cp * (T_return - T_supply)`, thermal
-  capacitance, state definitions, and explicit time integration.
-- **Required decisions:** Physical meaning of the thermal state, parameter basis,
-  load-side and chiller-side interfaces, timestep, and acceptance limits.
-- **Required verification:** Dimensional checks, an analytical reference case,
-  energy-conservation residual, timestep sensitivity, and quantitative load-step
-  response metrics.
-- **Completion condition:** Equations, assumptions, implementation, tests, data,
-  plots, acceptance results, interpretation, uncertainty, and limitations are
-  linked here.
+- **Theory:** `Q_flow = m_dot * Cp * (T_return - T_supply)`,
+  `M_supply * Cp * dT_supply/dt = Q_flow - Q_chiller`, and
+  `M_return * Cp * dT_return/dt = Q_load - Q_flow`. Adding the two node
+  balances cancels the internal flow term and gives total stored-energy change
+  equal to `Q_load - Q_chiller`.
+- **System boundary and assumptions:** The boundary contains one well-mixed
+  supply node and one well-mixed return node. Building heat enters the return
+  node, the chiller removes heat from the supply node, and water flow transfers
+  heat internally. Constant flow, constant node masses, instantaneous
+  proportional control, and no pipe or equipment dynamics are assumed.
+- **Alternatives and trade-offs:** A one-node model cannot expose CHWS/CHWR
+  temperature difference or mass-flow heat transfer. A detailed hydraulic or
+  refrigerant model would add parameters without current validation data. The
+  selected two-node model adds the required physics while remaining auditable.
+- **Engineering decision:** Use two 500 kg water nodes, 5 kg/s mass flow,
+  `Cp = 4.18 kJ/(kg * degC)`, a 7 degC CHWS setpoint, and the existing bounded
+  P controller. Begin at the analytical 30 kW steady state, then apply a 50 kW
+  load at 600 s over a 1800 s experiment.
+- **Implementation:** `plant.py`, `stage3_main.py`, `plot_stage3.py`, and
+  `tests/test_stage3.py`.
+- **Verification:** Eight new tests cover the flow equation, zero-flow response,
+  balanced heat rates, total-energy conservation, analytical offset, load-step
+  convergence, and time-step sensitivity. `stage3_main.py` independently
+  calculates acceptance metrics and writes 181 result samples.
+- **Quantitative result:** All 32 project tests pass. Final CHWS is 8.665 degC
+  against 8.667 degC analytical; final CHWR is 11.055 degC against 11.059 degC
+  analytical. The CHWS enters a +/-0.1 degC band after 420 s. Maximum energy
+  residual is about `3.5e-12 kJ`, and the 5 s versus 10 s final-temperature
+  difference is about `0.0003 degC`. All defined acceptance checks pass.
+- **Interpretation:** The model reproduces the expected increase in CHWS,
+  CHWR, cooling demand, and flow-carried heat after the building load rises.
+  Agreement with the analytical target and small time-step difference support
+  the implementation within the stated simplified boundary.
+- **Limitations and uncertainty:** Parameters are educational assumptions, not
+  site data. Constant mass flow, two lumped water states, and omitted transport,
+  sensor, actuator, pump, pipe-loss, and refrigerant dynamics limit use to
+  learning and control-development evidence.
+- **Learner explanation checkpoint:** Explain where load heat enters, where
+  chiller heat leaves, why `Q_flow` cancels from the total balance, and why P
+  control retains a steady-state CHWS offset.
+
+Detailed derivation and parameter basis are in
+`docs/STAGE3_ENGINEERING_BASIS.md`. Raw evidence is in `results/stage3.csv`, and
+the generated result plot is `docs/stage3-load-step-results.svg`.
 
 ## Entry template
 

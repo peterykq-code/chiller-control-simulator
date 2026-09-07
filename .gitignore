@@ -1,4 +1,7 @@
 __pycache__/
 *.py[cod]
 .venv/
-results/
+HANDOFF.md
+results/*
+!results/stage1.csv
+!results/stage2.csv

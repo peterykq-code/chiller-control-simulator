@@ -42,6 +42,16 @@ The scenario is deterministic so every state transition can be reproduced and te
 
 The water begins at 14 degrees Celsius with a constant 30 kW heat load. It warms while cooling is blocked, cools while the equipment is RUNNING, and warms again after the fault and reset. The default run ends in OFF at approximately 14.862 degrees Celsius.
 
+## Stage 2 result
+
+![Stage 2 simulation results](docs/stage2-simulation-results.png)
+
+The upper plot shows the water-temperature response. The middle plot compares
+requested cooling with the cooling permitted by the equipment state. The lower
+plot records the OFF, STARTING, RUNNING, and FAULT sequence. The plotted data is
+preserved in `results/stage2.csv`; `results/stage1.csv` retains the Stage 1
+baseline.
+
 ## Control sequence
 
 ```text
@@ -160,6 +170,26 @@ Passing these scenarios verifies the stated educational model. It does not estab
 - STARTING represents flow-proof waiting only.
 - FAULT represents simplified loss of chilled-water flow; manufacturer protections are not reproduced.
 - The reset rule is an educational choice and not a site-specific operating sequence.
+
+## Engineering development direction
+
+The current repository is classified as an early simplified engineering model.
+It uses a real energy balance and tested control sequence, but it is not yet a
+design, equipment-selection, energy-prediction, or commissioning model.
+
+The detailed [Engineering Gap Audit](docs/ENGINEERING_GAP_AUDIT.md) records the
+current capability scores, Engineers Australia evidence mapping, major gaps,
+priorities, deferred features, and the bounded next sprint.
+
+The [Engineering Evidence Register](docs/ENGINEERING_EVIDENCE.md) links each
+completed stage from requirement and theory through implementation, test, result,
+interpretation, and limitations.
+
+The next planned stage is a physics and validation foundation: define the system
+boundary, introduce mass flow and separate chilled-water supply/return
+temperatures, run a defined load disturbance, calculate quantitative performance
+metrics, and verify energy conservation and timestep sensitivity. PI/PID, extra
+faults, multi-chiller staging, PLC code, and UI work remain later stages.
 
 ## Portfolio explanation
 

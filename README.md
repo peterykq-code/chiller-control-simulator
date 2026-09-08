@@ -1,18 +1,21 @@
 # Chiller Control Simulator
 
-An educational Python project for learning controls software engineering through a simplified chilled-water system.
+An educational Python and Simulink project for learning controls software
+engineering through a simplified chilled-water system.
 
 Stage 1 established a lumped water-temperature model and proportional control.
 Stage 2 added a tested equipment operating sequence with OFF, STARTING,
 RUNNING, and FAULT states. Stage 3 adds separate chilled-water supply and
 return temperatures, mass-flow heat transfer, a defined load-step experiment,
-and quantitative physics validation.
+and quantitative physics validation. Stage 3B recreates that experiment in
+Simulink and compares every temperature sample with the Python reference.
 
 This is an independent learning simulation. It is not connected to physical equipment and does not represent any manufacturer's control software.
 
 ## Run the simulation
 
-The project uses only the Python standard library and has been tested with Python 3.12.13.
+The Python model uses only the standard library and has been tested with Python
+3.12.13. Stage 3B was developed for MATLAB R2024a with Simulink.
 
 From the project root:
 
@@ -38,6 +41,17 @@ python plot_stage3.py
 The Stage 3 runner writes `results/stage3.csv`. The plotting script reads that
 CSV and writes `docs/stage3-load-step-results.svg` using only the Python
 standard library.
+
+From MATLAB, rebuild and validate the Stage 3B model with:
+
+```matlab
+addpath("matlab")
+build_stage3b_model
+run_stage3b_validation
+```
+
+The validation script compares all 181 Simulink samples with the Python CSV,
+checks the `1e-9 degC` acceptance limit, and generates comparison evidence.
 
 ## Demonstration scenario
 
@@ -84,6 +98,21 @@ time-step-sensitivity acceptance criteria. Its assumptions and derivation are
 recorded in [Stage 3 Engineering Basis](docs/STAGE3_ENGINEERING_BASIS.md).
 The [Stage 3 Tool Guide](docs/STAGE3_TOOL_GUIDE.md) explains how to run and
 inspect the Python program, tests, CSV data, SVG plot, and Git evidence.
+
+## Stage 3B result
+
+![Stage 3B Python-Simulink comparison](docs/stage3b-python-simulink-comparison.png)
+
+The Simulink model uses `Unit Delay`, `Step`, `Sum`, `Gain`, `Saturation`, and
+`To Workspace` blocks to reproduce the same discrete energy balances and
+proportional controller as Python. The automated validation compares every
+CHWS and CHWR sample and fails if either maximum absolute difference exceeds
+`1e-9 degC`.
+
+The model structure, acceptance criterion, evidence outputs, and limitations
+are recorded in [Stage 3B Cross-Validation](docs/STAGE3B_CROSS_VALIDATION.md).
+The [Stage 3B Tool Guide](docs/STAGE3B_TOOL_GUIDE.md) explains how to open,
+run, inspect, and rebuild the Simulink model.
 
 ## Control sequence
 
@@ -189,7 +218,7 @@ temperature change = 30 * 10 / (1000 * 4.18)
 
 ## Verification
 
-The test suite contains 32 test methods:
+The test suite contains 34 test methods:
 
 - 10 retained Stage 1 tests for proportional control, the energy balance, validation, and the original closed loop.
 - 5 cooling-permission tests for supported states, boundaries, invalid inputs, and a connected thermal example.
@@ -198,6 +227,8 @@ The test suite contains 32 test methods:
 - 8 Stage 3 tests for flow heat transfer, zero-flow behaviour, balanced node
   heat rates, total-energy conservation, analytical steady state, load-step
   convergence, and time-step sensitivity.
+- 2 Stage 3B evidence tests that independently read the preserved MATLAB CSV
+  outputs and enforce the Python-Simulink comparison limit.
 
 Passing these scenarios verifies the stated educational model. It does not establish real-equipment performance, safety certification, or commissioning results.
 
@@ -238,13 +269,17 @@ interpretation, and limitations.
 
 Stage 3 establishes the physics and validation foundation. A future stage can
 compare proportional and PI control against explicit response criteria before
-translation to PLC Structured Text. Extra faults, multi-chiller staging, and UI
-work remain later stages.
+translation to PLC Structured Text. Stage 3B adds cross-tool validation without
+changing the plant equations. Extra faults, multi-chiller staging, and UI work
+remain later stages.
 
 ## Portfolio explanation
 
 A concise description of the completed stage is:
 
-> I extended a Python chilled-water simulation with a tested equipment state machine. The controller calculates cooling demand, while OFF, STARTING, RUNNING, and FAULT states determine whether cooling is permitted. The scenario demonstrates flow proof, normal stop, restart, running flow loss, fault latching, and safe reset, with each thermal step checked by automated tests.
+> I developed and tested a two-node chilled-water model in Python, recreated the
+> same equations as a Simulink block model, and compared every CHWS and CHWR
+> sample under an identical load disturbance. The evidence includes analytical,
+> energy-conservation, time-step-sensitivity, and cross-tool checks.
 
 The code, data, tests, and documentation should be presented as learning evidence. Any public post should distinguish this simulation from hardware commissioning or a manufacturer's actual control logic.

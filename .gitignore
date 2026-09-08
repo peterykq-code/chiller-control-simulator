@@ -6,3 +6,5 @@ results/*
 !results/stage1.csv
 !results/stage2.csv
 !results/stage3.csv
+!results/stage3b_comparison.csv
+!results/stage3b_summary.csv

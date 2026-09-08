@@ -113,6 +113,46 @@ Detailed derivation and parameter basis are in
 `docs/STAGE3_ENGINEERING_BASIS.md`. Raw evidence is in `results/stage3.csv`, and
 the generated result plot is `docs/stage3-load-step-results.svg`.
 
+## EV-CHILLER-S3B-001 — Python-Simulink cross-validation
+
+- **Status:** Implemented and verified locally.
+- **Requirement and acceptance criterion:** Recreate the Stage 3A discrete
+  two-node model in Simulink with the same parameters, sample time, initial
+  conditions, controller, and load step. Compare 181 CHWS and CHWR samples;
+  maximum absolute differences must each be no greater than `1e-9 degC`.
+- **Engineering question:** Does a second engineering modelling tool reproduce
+  the Python thermal response when both implement the stated equations?
+- **Theory:** Both implementations use the documented supply and return energy
+  balances, explicit 10-second updates, mass-flow heat transfer, and bounded
+  proportional control.
+- **System boundary and assumptions:** Identical to Stage 3A. This activity
+  changes the implementation tool, not the physical boundary or parameters.
+- **Alternatives and trade-offs:** Replotting Python data in MATLAB would only
+  verify data import. A separate Simulink block model exercises the equations
+  through a second execution path while remaining simple enough to inspect.
+- **Engineering decision:** Generate a reviewable `.slx` model from a MATLAB
+  script so the block structure is both visual and reproducible. Log Simulink
+  signals to MATLAB, import the Python CSV, and compare aligned samples.
+- **Implementation:** `matlab/build_stage3b_model.m`,
+  `matlab/stage3b_chilled_water.slx`, and
+  `matlab/run_stage3b_validation.m`.
+- **Verification:** The MATLAB script asserts sample count, timestamps, and the
+  temperature-difference limit before writing evidence. Two Python tests then
+  read the preserved MATLAB CSV files and enforce the same acceptance result.
+- **Quantitative result:** The generated `results/stage3b_summary.csv` records
+  the measured maximum CHWS and CHWR differences and the `1e-9 degC` limit.
+  The Stage 3B commit is created only after the MATLAB assertion and all 34
+  Python tests pass.
+- **Interpretation:** Agreement shows that the documented discrete equations
+  were transferred consistently between Python and Simulink. It reduces the
+  chance of a tool-specific implementation error.
+- **Limitations and uncertainty:** Both tools implement the same assumptions,
+  so agreement is not validation against a real chiller plant. It does not
+  remove parameter or model-form uncertainty.
+- **Learner explanation checkpoint:** Explain the purpose of each block group,
+  why the same load step is used, and the difference between cross-tool
+  verification and validation against measured plant data.
+
 ## Entry template
 
 ```markdown

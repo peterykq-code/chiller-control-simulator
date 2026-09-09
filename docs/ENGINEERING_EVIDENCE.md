@@ -206,6 +206,55 @@ Detailed definitions and results are in `docs/STAGE4_ENGINEERING_BASIS.md`.
 Raw evidence is in `results/stage4.csv` and `results/stage4_summary.csv`; the
 generated figure is `docs/stage4-p-vs-pi-results.svg`.
 
+## EV-CHILLER-S4B-001 — Python-Simulink PI cross-validation
+
+- **Status:** Implemented and verified locally.
+- **Requirement and acceptance criterion:** Recreate the Stage 4A PI response
+  in Simulink with the same controller gains, integral initial condition, plant,
+  load profile, sample time, and duration. Compare all 181 CHWS, CHWR, cooling-
+  fraction, and integral-state samples. Each maximum difference must be no
+  greater than `1e-9` in its native units; timestamps must agree within
+  `1e-12 s`.
+- **Engineering question:** Does an independently assembled Simulink block model
+  reproduce the discrete PI calculation, integral timing, and two-node thermal
+  response implemented in Python?
+- **Theory:** `e = CHWS - setpoint`, `u = clamp(Kp*e + Ki*I, 0, 1)`, and
+  `I_next = I + e*dt`. Supply and return temperatures retain the Stage 3 energy
+  balances. `Unit Delay` blocks represent the three discrete state variables.
+- **System boundary and assumptions:** Identical to the Stage 4A normal load-step
+  case. The maximum command is about 52.6%, so saturation is not reached and
+  Simulink anti-windup behaviour is outside this comparison.
+- **Alternatives and trade-offs:** Plotting imported Python results in MATLAB
+  would not provide an independent execution path. A generated Simulink block
+  model is reproducible and visually reviewable. Adding saturation-state logic
+  without an exercised saturation scenario would increase diagram complexity
+  without providing cross-tool anti-windup evidence.
+- **Engineering decision:** Use standard Simulink blocks for the PI and plant
+  equations, log the four compared signals, and preserve Python-tested
+  conditional anti-windup as a separately bounded claim.
+- **Implementation:** `matlab/build_stage4b_model.m`,
+  `matlab/stage4b_pi_control.slx`, and `matlab/run_stage4b_validation.m`.
+- **Verification:** The MATLAB script asserts sample count, timestamp alignment,
+  and all four signal limits before writing evidence. Two Python tests read the
+  preserved CSV outputs and enforce the same result. The full suite contains 45
+  tests.
+- **Quantitative result:** 181 samples are aligned. The maximum CHWS, CHWR,
+  cooling-fraction, and integral-state differences are recorded in
+  `results/stage4b_summary.csv` and each passes the `1e-9` limit.
+- **Interpretation:** Agreement supports correct transfer of the stated
+  equations and discrete timing between Python and Simulink. It does not prove
+  that either implementation represents a real plant.
+- **Limitations and uncertainty:** Both tools share the same simplified model,
+  parameter assumptions, and ideal signals. Saturation recovery, measured plant
+  data, model-form uncertainty, and robustness remain outside this result.
+- **Learner explanation checkpoint:** Explain why the integral needs a stored
+  state, what `1/z` means, why four signals are compared, and why normal PI
+  agreement does not verify anti-windup or real equipment performance.
+
+Detailed scope and result interpretation are in
+`docs/STAGE4B_CROSS_VALIDATION.md`. Operating instructions are in
+`docs/STAGE4B_TOOL_GUIDE.md`.
+
 ## Entry template
 
 ```markdown

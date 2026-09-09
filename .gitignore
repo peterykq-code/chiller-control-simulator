@@ -10,3 +10,5 @@ results/*
 !results/stage3b_summary.csv
 !results/stage4.csv
 !results/stage4_summary.csv
+!results/stage4b_comparison.csv
+!results/stage4b_summary.csv

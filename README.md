@@ -10,7 +10,9 @@ return temperatures, mass-flow heat transfer, a defined load-step experiment,
 and quantitative physics validation. Stage 3B recreates that experiment in
 Simulink and compares every temperature sample with the Python reference.
 Stage 4A compares proportional and PI control against explicit setpoint-response,
-control-output, energy-conservation, and numerical-sensitivity criteria.
+control-output, energy-conservation, and numerical-sensitivity criteria. Stage
+4B recreates the PI case in Simulink and compares its temperature, command, and
+integral-state samples with Python.
 
 This is an independent learning simulation. It is not connected to physical equipment and does not represent any manufacturer's control software.
 
@@ -65,6 +67,18 @@ python plot_stage4.py
 The runner writes aligned P and PI samples to `results/stage4.csv` and compact
 metrics to `results/stage4_summary.csv`. The plotting script creates
 `docs/stage4-p-vs-pi-results.svg` using only the Python standard library.
+
+From MATLAB, rebuild and validate the Stage 4B PI model with:
+
+```matlab
+addpath("matlab")
+build_stage4b_model
+run_stage4b_validation
+```
+
+The script compares all 181 PI samples for CHWS, CHWR, cooling fraction, and
+integral state. Each maximum absolute difference must be no greater than
+`1e-9` in the signal's native units.
 
 ## Demonstration scenario
 
@@ -146,6 +160,24 @@ The equations, initial-condition decision, metrics, criteria, results, and
 limitations are recorded in [Stage 4A Engineering Basis](docs/STAGE4_ENGINEERING_BASIS.md).
 The [Stage 4A Tool Guide](docs/STAGE4_TOOL_GUIDE.md) explains how to run and
 inspect the Python evidence.
+
+## Stage 4B result
+
+![Stage 4B Python-Simulink PI comparison](docs/stage4b-python-simulink-comparison.png)
+
+The generated Simulink model uses standard `Sum`, `Gain`, `Unit Delay`,
+`Saturation`, `Step`, and `To Workspace` blocks. It reproduces the Stage 4A PI
+controller timing and the Stage 3 two-node plant at a 10-second sample time.
+
+The automated validation aligns 181 samples and checks CHWS, CHWR, applied
+cooling fraction, and integral state. The measured maximum differences and
+pass/fail result are preserved in `results/stage4b_summary.csv`.
+
+The defined load step never saturates the controller, so this cross-tool result
+covers normal PI operation. Conditional anti-windup remains verified by the
+Stage 4A Python saturation tests. The evidence boundary and limitations are in
+[Stage 4B Cross-Validation](docs/STAGE4B_CROSS_VALIDATION.md); operating steps
+are in [Stage 4B Tool Guide](docs/STAGE4B_TOOL_GUIDE.md).
 
 ## Control sequence
 
@@ -254,7 +286,7 @@ temperature change = 30 * 10 / (1000 * 4.18)
 
 ## Verification
 
-The test suite contains 43 test methods:
+The test suite contains 45 test methods:
 
 - 10 retained Stage 1 tests for proportional control, the energy balance, validation, and the original closed loop.
 - 5 cooling-permission tests for supported states, boundaries, invalid inputs, and a connected thermal example.
@@ -268,6 +300,9 @@ The test suite contains 43 test methods:
 - 9 Stage 4A tests for PI calculation, input validation, conditional
   anti-windup, balanced initial conditions, setpoint response, integrated error,
   command limits, retained energy conservation, and time-step sensitivity.
+- 2 Stage 4B evidence tests that read the preserved MATLAB CSV outputs and
+  enforce sample count plus CHWS, CHWR, cooling-fraction, and integral-state
+  difference limits.
 
 Passing these scenarios verifies the stated educational model. It does not establish real-equipment performance, safety certification, or commissioning results.
 
@@ -307,10 +342,9 @@ completed stage from requirement and theory through implementation, test, result
 interpretation, and limitations.
 
 Stage 3 establishes the physics and validation foundation. Stage 4A adds a
-quantitative P-versus-PI comparison without changing the plant equations. A
-future Stage 4B can reproduce the PI response in Simulink before translation to
-PLC Structured Text. Extra faults, multi-chiller staging, and UI work remain
-later stages.
+quantitative P-versus-PI comparison without changing the plant equations. Stage
+4B reproduces the PI response in Simulink before translation to PLC Structured
+Text. Extra faults, multi-chiller staging, and UI work remain later stages.
 
 ## Portfolio explanation
 
@@ -320,6 +354,7 @@ A concise description of the completed stage is:
 > same equations as a Simulink block model, and compared every CHWS and CHWR
 > sample under an identical load disturbance. I then compared P and PI control
 > using final error, overshoot, settling time, integrated absolute error,
-> command limits, energy conservation, and time-step sensitivity.
+> command limits, energy conservation, and time-step sensitivity, and checked
+> the PI temperature, output, and integral-state traces in Simulink.
 
 The code, data, tests, and documentation should be presented as learning evidence. Any public post should distinguish this simulation from hardware commissioning or a manufacturer's actual control logic.

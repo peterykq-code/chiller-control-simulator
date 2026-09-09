@@ -153,6 +153,59 @@ the generated result plot is `docs/stage3-load-step-results.svg`.
   why the same load step is used, and the difference between cross-tool
   verification and validation against measured plant data.
 
+## EV-CHILLER-S4A-001 — Proportional versus PI control
+
+- **Status:** Implemented and verified locally.
+- **Requirement and acceptance criterion:** Compare P and PI control under the
+  same 30 to 50 kW load step. PI final CHWS error must be at most 0.05 degC,
+  overshoot at most 0.2 degC, and IAE at most 25% of the P result. PI must enter
+  and remain within +/-0.1 degC before the experiment ends. Commands must remain
+  between 0 and 1, total-energy residual must remain at most `1e-9 kJ`, and 5 s
+  versus 10 s final PI CHWS must differ by at most 0.02 degC.
+- **Engineering question:** How much does integral action improve CHWS setpoint
+  tracking, and what additional tuning and saturation risks does it introduce?
+- **Theory:** `u_P = clamp(Kp * e, 0, 1)` and
+  `u_PI = clamp(Kp * e + Ki * integral(e dt), 0, 1)`. P needs nonzero error to
+  maintain load-balancing output. PI can retain that output in its integral
+  state while instantaneous error returns toward zero.
+- **System boundary and assumptions:** The Stage 3 two-node model, parameters,
+  load profile, duration, and RUNNING permission are retained. Sensor, actuator,
+  transport, pump, and refrigerant dynamics remain outside the boundary.
+- **Alternatives and trade-offs:** Increasing `Kp` alone can reduce offset but
+  changes response sensitivity and cannot remove the theoretical P-only offset.
+  PI adds zero-error load balancing but introduces an integral state, tuning,
+  overshoot risk, and windup risk. PID is deferred because derivative action is
+  unnecessary for the current evidence question and would add noise sensitivity.
+- **Engineering decision:** Retain `Kp = 0.3 / degC` and use
+  `Ki = 0.001 / (degC s)`. Start each controller at its balanced 30 kW operating
+  point. Initialise PI with a 30% integral bias to avoid an artificial startup
+  transient. Use conditional integration for anti-windup.
+- **Implementation:** `controller.py`, `stage4_main.py`, `plot_stage4.py`, and
+  `tests/test_stage4.py`.
+- **Verification:** Nine new tests check PI calculation, invalid inputs,
+  anti-windup in both directions, balanced initial conditions, response criteria,
+  integrated error, command limits, retained energy conservation, and 5 s versus
+  10 s sensitivity. The full suite contains 43 tests.
+- **Quantitative result:** P final CHWS error is 1.665 degC and does not enter the
+  setpoint band. PI final error is -0.004 degC, settling time is 800 s, overshoot
+  is 0.004 degC, and IAE falls from 1840.9 to 206.2 degC s, an 88.8% reduction.
+  PI maximum command is 52.6%. Maximum energy residual is below `3.6e-12 kJ`;
+  5 s versus 10 s final PI CHWS differs by about 0.0017 degC. All checks pass.
+- **Interpretation:** Integral action stores the cooling contribution needed to
+  balance the final load, removing the P-only steady-state offset for this
+  experiment. The improved result depends on the selected gain and simplified
+  dynamics; it is not proof of performance on a real plant.
+- **Limitations and uncertainty:** `Ki` is evaluated for one deterministic load
+  step with fixed flow and capacity. There is no noise, delay, actuator rate
+  limit, equipment cycling, parameter uncertainty study, or measured plant data.
+- **Learner explanation checkpoint:** Explain why P needs offset, how the
+  integral state supplies output at zero error, what IAE and settling time mean,
+  and how conditional integration reduces windup.
+
+Detailed definitions and results are in `docs/STAGE4_ENGINEERING_BASIS.md`.
+Raw evidence is in `results/stage4.csv` and `results/stage4_summary.csv`; the
+generated figure is `docs/stage4-p-vs-pi-results.svg`.
+
 ## Entry template
 
 ```markdown

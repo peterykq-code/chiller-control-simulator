@@ -9,6 +9,8 @@ RUNNING, and FAULT states. Stage 3 adds separate chilled-water supply and
 return temperatures, mass-flow heat transfer, a defined load-step experiment,
 and quantitative physics validation. Stage 3B recreates that experiment in
 Simulink and compares every temperature sample with the Python reference.
+Stage 4A compares proportional and PI control against explicit setpoint-response,
+control-output, energy-conservation, and numerical-sensitivity criteria.
 
 This is an independent learning simulation. It is not connected to physical equipment and does not represent any manufacturer's control software.
 
@@ -52,6 +54,17 @@ run_stage3b_validation
 
 The validation script compares all 181 Simulink samples with the Python CSV,
 checks the `1e-9 degC` acceptance limit, and generates comparison evidence.
+
+Run the Stage 4A controller comparison and regenerate its plot with:
+
+```powershell
+python stage4_main.py
+python plot_stage4.py
+```
+
+The runner writes aligned P and PI samples to `results/stage4.csv` and compact
+metrics to `results/stage4_summary.csv`. The plotting script creates
+`docs/stage4-p-vs-pi-results.svg` using only the Python standard library.
 
 ## Demonstration scenario
 
@@ -114,6 +127,26 @@ are recorded in [Stage 3B Cross-Validation](docs/STAGE3B_CROSS_VALIDATION.md).
 The [Stage 3B Tool Guide](docs/STAGE3B_TOOL_GUIDE.md) explains how to open,
 run, inspect, and rebuild the Simulink model.
 
+## Stage 4A result
+
+![Stage 4A P versus PI comparison](docs/stage4-p-vs-pi-results.svg)
+
+Both controllers use the same Stage 3 plant, 7 degC CHWS setpoint, and 30 to
+50 kW load step. P finishes with a 1.665 degC CHWS error. PI finishes with a
+-0.004 degC error, enters and remains within the +/-0.1 degC band after 800 s,
+and limits overshoot to 0.004 degC. Its integrated absolute error is 88.8%
+lower than P for the defined post-step period.
+
+All cooling commands remain between 0% and 100%, maximum energy residual stays
+below `3.6e-12 kJ`, and changing the PI time step from 10 s to 5 s changes final
+CHWS by about `0.0017 degC`. The PI controller includes conditional anti-windup,
+which is exercised by dedicated saturation tests.
+
+The equations, initial-condition decision, metrics, criteria, results, and
+limitations are recorded in [Stage 4A Engineering Basis](docs/STAGE4_ENGINEERING_BASIS.md).
+The [Stage 4A Tool Guide](docs/STAGE4_TOOL_GUIDE.md) explains how to run and
+inspect the Python evidence.
+
 ## Control sequence
 
 ```text
@@ -159,6 +192,7 @@ Flow loss has priority over a simultaneous normal stop so the abnormal event is 
 | File | Function | Inputs | Output |
 | --- | --- | --- | --- |
 | `controller.py` | `proportional_control()` | Water temperature and setpoint in degrees Celsius; gain in 1/degree Celsius | Requested cooling fraction from 0.0 to 1.0 |
+| `controller.py` | `proportional_integral_control()` | Temperature, setpoint, P/I gains, integral state, and scan interval | Requested cooling fraction and next integral state |
 | `controller.py` | `update_equipment_state()` | Current state and Boolean start, stop, flow, timeout, and reset signals | Next equipment state |
 | `controller.py` | `apply_cooling_permission()` | Requested cooling fraction and equipment state | Applied cooling fraction from 0.0 to 1.0 |
 | `plant.py` | `update_temperature()` | Temperature, applied cooling, heat load, capacity, water mass, and time step | Temperature after one step |
@@ -168,6 +202,8 @@ Flow loss has priority over a simultaneous normal stop so the abnormal event is 
 | `main.py` | `main()` | Fixed experiment settings | Terminal output and `results/stage2.csv` |
 | `stage3_main.py` | `run_experiment()` | Time step in seconds | Reproducible Stage 3 load-step samples |
 | `stage3_main.py` | `calculate_metrics()` | Stage 3 samples | Analytical, conservation, and settling metrics |
+| `stage4_main.py` | `run_experiment()` | Controller name and time step | Reproducible P or PI load-step samples |
+| `stage4_main.py` | `evaluate_acceptance()` | P, PI, and 5-second PI samples | Named checks and controller metrics |
 
 The CSV records time, water temperature, setpoint, state, requested cooling, applied cooling, and the Boolean scenario inputs. This makes the reason for each response traceable.
 
@@ -218,7 +254,7 @@ temperature change = 30 * 10 / (1000 * 4.18)
 
 ## Verification
 
-The test suite contains 34 test methods:
+The test suite contains 43 test methods:
 
 - 10 retained Stage 1 tests for proportional control, the energy balance, validation, and the original closed loop.
 - 5 cooling-permission tests for supported states, boundaries, invalid inputs, and a connected thermal example.
@@ -229,6 +265,9 @@ The test suite contains 34 test methods:
   convergence, and time-step sensitivity.
 - 2 Stage 3B evidence tests that independently read the preserved MATLAB CSV
   outputs and enforce the Python-Simulink comparison limit.
+- 9 Stage 4A tests for PI calculation, input validation, conditional
+  anti-windup, balanced initial conditions, setpoint response, integrated error,
+  command limits, retained energy conservation, and time-step sensitivity.
 
 Passing these scenarios verifies the stated educational model. It does not establish real-equipment performance, safety certification, or commissioning results.
 
@@ -267,11 +306,11 @@ The [Engineering Evidence Register](docs/ENGINEERING_EVIDENCE.md) links each
 completed stage from requirement and theory through implementation, test, result,
 interpretation, and limitations.
 
-Stage 3 establishes the physics and validation foundation. A future stage can
-compare proportional and PI control against explicit response criteria before
-translation to PLC Structured Text. Stage 3B adds cross-tool validation without
-changing the plant equations. Extra faults, multi-chiller staging, and UI work
-remain later stages.
+Stage 3 establishes the physics and validation foundation. Stage 4A adds a
+quantitative P-versus-PI comparison without changing the plant equations. A
+future Stage 4B can reproduce the PI response in Simulink before translation to
+PLC Structured Text. Extra faults, multi-chiller staging, and UI work remain
+later stages.
 
 ## Portfolio explanation
 
@@ -279,7 +318,8 @@ A concise description of the completed stage is:
 
 > I developed and tested a two-node chilled-water model in Python, recreated the
 > same equations as a Simulink block model, and compared every CHWS and CHWR
-> sample under an identical load disturbance. The evidence includes analytical,
-> energy-conservation, time-step-sensitivity, and cross-tool checks.
+> sample under an identical load disturbance. I then compared P and PI control
+> using final error, overshoot, settling time, integrated absolute error,
+> command limits, energy conservation, and time-step sensitivity.
 
 The code, data, tests, and documentation should be presented as learning evidence. Any public post should distinguish this simulation from hardware commissioning or a manufacturer's actual control logic.

@@ -28,6 +28,54 @@ def proportional_control(
     return max(0.0, min(1.0, requested_cooling))
 
 
+def proportional_integral_control(
+    temperature_c: float,
+    setpoint_c: float,
+    kp: float,
+    ki_per_s: float,
+    integral_error_c_s: float,
+    dt_s: float,
+) -> tuple[float, float]:
+    """Return a bounded PI cooling command and the integral state for the next scan.
+
+    temperature_c: current measured water temperature, in degrees Celsius.
+    setpoint_c: desired water temperature, in degrees Celsius.
+    kp: proportional gain, in 1/degree Celsius.
+    ki_per_s: integral gain, in 1/(degree Celsius * second).
+    integral_error_c_s: accumulated temperature error, in degree Celsius seconds.
+    dt_s: controller scan interval, in seconds.
+
+    Conditional integration prevents the integral state from growing when the
+    output is saturated and the current error would drive it farther outside
+    the available 0% to 100% cooling range.
+    """
+    values = (
+        temperature_c,
+        setpoint_c,
+        kp,
+        ki_per_s,
+        integral_error_c_s,
+        dt_s,
+    )
+    if not all(math.isfinite(value) for value in values):
+        raise ValueError("PI controller inputs must be finite numbers.")
+    if kp <= 0.0 or ki_per_s <= 0.0 or dt_s <= 0.0:
+        raise ValueError("kp, ki_per_s and dt_s must be positive.")
+
+    error_c = temperature_c - setpoint_c
+    unrestricted_command = kp * error_c + ki_per_s * integral_error_c_s
+    requested_cooling = max(0.0, min(1.0, unrestricted_command))
+
+    saturated_high = unrestricted_command >= 1.0 and error_c > 0.0
+    saturated_low = unrestricted_command <= 0.0 and error_c < 0.0
+    if saturated_high or saturated_low:
+        next_integral_error_c_s = integral_error_c_s
+    else:
+        next_integral_error_c_s = integral_error_c_s + error_c * dt_s
+
+    return requested_cooling, next_integral_error_c_s
+
+
 def update_equipment_state(
     current_state: str,
     start_command: bool,

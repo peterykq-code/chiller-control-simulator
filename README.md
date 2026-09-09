@@ -12,7 +12,8 @@ Simulink and compares every temperature sample with the Python reference.
 Stage 4A compares proportional and PI control against explicit setpoint-response,
 control-output, energy-conservation, and numerical-sensitivity criteria. Stage
 4B recreates the PI case in Simulink and compares its temperature, command, and
-integral-state samples with Python.
+integral-state samples with Python. Stage 5A exercises controller saturation
+and compares PI recovery with and without conditional anti-windup.
 
 This is an independent learning simulation. It is not connected to physical equipment and does not represent any manufacturer's control software.
 
@@ -79,6 +80,19 @@ run_stage4b_validation
 The script compares all 181 PI samples for CHWS, CHWR, cooling fraction, and
 integral state. Each maximum absolute difference must be no greater than
 `1e-9` in the signal's native units.
+
+Run the Stage 5A saturation and anti-windup comparison with:
+
+```powershell
+python stage5_main.py
+python plot_stage5.py
+```
+
+The experiment applies a 120 kW overload to a plant with 100 kW maximum cooling,
+then returns the load to 30 kW. It writes aligned protected and unprotected PI
+samples to `results/stage5.csv`, summary metrics to
+`results/stage5_summary.csv`, and the result figure to
+`docs/stage5-anti-windup-results.svg`.
 
 ## Demonstration scenario
 
@@ -179,6 +193,27 @@ Stage 4A Python saturation tests. The evidence boundary and limitations are in
 [Stage 4B Cross-Validation](docs/STAGE4B_CROSS_VALIDATION.md); operating steps
 are in [Stage 4B Tool Guide](docs/STAGE4B_TOOL_GUIDE.md).
 
+## Stage 5A result
+
+![Stage 5A anti-windup comparison](docs/stage5-anti-windup-results.svg)
+
+The 120 kW overload exceeds the 100 kW cooling limit, so both PI cases reach
+100% output. Without anti-windup, the integral state grows to `1827.3 degC s`
+and keeps the controller fully loaded for 390 s after the load returns to
+30 kW. Conditional anti-windup limits the integral state to `629.8 degC s` and
+exits full cooling after 160 s.
+
+The protected case limits recovery undershoot to 0.612 degC versus 2.996 degC
+without protection. Recovery IAE falls from approximately 2127.9 to
+879.7 degC s. All commands remain bounded, energy residual stays below
+`2.7e-12 kJ`, and the tested 5-second versus 10-second final-error difference is
+approximately 0.0003 degC.
+
+The equations, defined overload, criteria, results, and limitations are in
+[Stage 5A Engineering Basis](docs/STAGE5_ENGINEERING_BASIS.md). The
+[Stage 5A Tool Guide](docs/STAGE5_TOOL_GUIDE.md) explains how to run and inspect
+the evidence.
+
 ## Control sequence
 
 ```text
@@ -236,6 +271,8 @@ Flow loss has priority over a simultaneous normal stop so the abnormal event is 
 | `stage3_main.py` | `calculate_metrics()` | Stage 3 samples | Analytical, conservation, and settling metrics |
 | `stage4_main.py` | `run_experiment()` | Controller name and time step | Reproducible P or PI load-step samples |
 | `stage4_main.py` | `evaluate_acceptance()` | P, PI, and 5-second PI samples | Named checks and controller metrics |
+| `stage5_main.py` | `run_experiment()` | Anti-windup selection and time step | Reproducible overload and recovery samples |
+| `stage5_main.py` | `evaluate_acceptance()` | Protected, unprotected, and 5-second protected samples | Saturation and recovery checks plus metrics |
 
 The CSV records time, water temperature, setpoint, state, requested cooling, applied cooling, and the Boolean scenario inputs. This makes the reason for each response traceable.
 
@@ -286,7 +323,7 @@ temperature change = 30 * 10 / (1000 * 4.18)
 
 ## Verification
 
-The test suite contains 45 test methods:
+The test suite contains 52 test methods:
 
 - 10 retained Stage 1 tests for proportional control, the energy balance, validation, and the original closed loop.
 - 5 cooling-permission tests for supported states, boundaries, invalid inputs, and a connected thermal example.
@@ -303,6 +340,9 @@ The test suite contains 45 test methods:
 - 2 Stage 4B evidence tests that read the preserved MATLAB CSV outputs and
   enforce sample count plus CHWS, CHWR, cooling-fraction, and integral-state
   difference limits.
+- 7 Stage 5A tests for the anti-windup option, load-profile boundaries, balanced
+  initial conditions, exercised saturation, recovery improvements, command and
+  energy limits, and time-step sensitivity.
 
 Passing these scenarios verifies the stated educational model. It does not establish real-equipment performance, safety certification, or commissioning results.
 

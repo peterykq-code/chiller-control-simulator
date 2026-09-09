@@ -1,0 +1,3 @@
+controller,maximum_supply_temperature_c,minimum_recovery_supply_temperature_c,recovery_undershoot_c,saturation_release_time_s,recovery_settling_time_s,recovery_integrated_absolute_error_c_s,maximum_integral_error_c_s,saturated_duration_s,maximum_cooling_fraction,final_error_c,maximum_energy_residual_kj,timestep_final_error_difference_c
+PI_NO_ANTI_WINDUP,10.195480956012078,4.00436977356666,2.99563022643334,390.0,1270.0,2127.9382801752795,1827.3014162619693,740.0,1.0,0.0025462842954793174,2.682298827494378e-12,
+PI_ANTI_WINDUP,10.195480956012078,6.387805508349873,0.6121944916501274,160.0,1170.0,879.6962858342848,629.7620725801107,510.0,1.0,0.0013467821080475062,2.496669537777052e-12,0.0002638919106896509

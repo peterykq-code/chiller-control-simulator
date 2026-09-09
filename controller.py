@@ -35,6 +35,7 @@ def proportional_integral_control(
     ki_per_s: float,
     integral_error_c_s: float,
     dt_s: float,
+    anti_windup_enabled: bool = True,
 ) -> tuple[float, float]:
     """Return a bounded PI cooling command and the integral state for the next scan.
 
@@ -44,6 +45,8 @@ def proportional_integral_control(
     ki_per_s: integral gain, in 1/(degree Celsius * second).
     integral_error_c_s: accumulated temperature error, in degree Celsius seconds.
     dt_s: controller scan interval, in seconds.
+    anti_windup_enabled: True uses conditional integration. False is retained
+        only as an educational comparison case that demonstrates windup.
 
     Conditional integration prevents the integral state from growing when the
     output is saturated and the current error would drive it farther outside
@@ -61,6 +64,8 @@ def proportional_integral_control(
         raise ValueError("PI controller inputs must be finite numbers.")
     if kp <= 0.0 or ki_per_s <= 0.0 or dt_s <= 0.0:
         raise ValueError("kp, ki_per_s and dt_s must be positive.")
+    if not isinstance(anti_windup_enabled, bool):
+        raise ValueError("anti_windup_enabled must be True or False.")
 
     error_c = temperature_c - setpoint_c
     unrestricted_command = kp * error_c + ki_per_s * integral_error_c_s
@@ -68,7 +73,7 @@ def proportional_integral_control(
 
     saturated_high = unrestricted_command >= 1.0 and error_c > 0.0
     saturated_low = unrestricted_command <= 0.0 and error_c < 0.0
-    if saturated_high or saturated_low:
+    if anti_windup_enabled and (saturated_high or saturated_low):
         next_integral_error_c_s = integral_error_c_s
     else:
         next_integral_error_c_s = integral_error_c_s + error_c * dt_s

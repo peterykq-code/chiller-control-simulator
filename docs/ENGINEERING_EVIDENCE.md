@@ -255,6 +255,61 @@ Detailed scope and result interpretation are in
 `docs/STAGE4B_CROSS_VALIDATION.md`. Operating instructions are in
 `docs/STAGE4B_TOOL_GUIDE.md`.
 
+## EV-CHILLER-S5A-001 — PI saturation and anti-windup recovery
+
+- **Status:** Implemented and verified locally.
+- **Requirement and acceptance criterion:** Exercise the 100% cooling limit
+  with a defined 120 kW overload, then compare recovery with and without
+  conditional anti-windup. Commands must remain bounded; protected PI must
+  limit integral growth, leave saturation at least 180 s earlier, reduce
+  recovery IAE by at least 50%, limit undershoot to 1 degC and 30% of the
+  unprotected result, settle at least 60 s earlier, and finish within 0.05 degC.
+  Energy residual must remain at most `1e-9 kJ`; 5 s versus 10 s final-error
+  difference must remain at most 0.02 degC.
+- **Engineering question:** Does conditional integration reduce stored control
+  bias and improve recovery after a sustained load beyond chiller capacity?
+- **Theory:** `u = clamp(Kp*e + Ki*I, 0, 1)`. Unprotected PI always applies
+  `I_next = I + e*dt`. Conditional integration holds `I` when saturated and the
+  current error would push farther outside the output range, while allowing
+  error that drives the command back toward the available range.
+- **System boundary and assumptions:** The Stage 3 two-node plant and Stage 4
+  gains are retained. Load is 30 kW, rises to 120 kW from 600 to 1200 s, then
+  returns to 30 kW. Maximum cooling is 100 kW. Ideal signals and RUNNING
+  permission isolate continuous-control saturation.
+- **Alternatives and trade-offs:** Back-calculation can provide adjustable
+  tracking of the saturated command but adds another gain. Conditional
+  integration is retained because it is explicit, already unit tested, and
+  sufficient for the defined learning experiment.
+- **Engineering decision:** Compare the protected controller with an explicitly
+  labelled unprotected benchmark under identical plant conditions. Use release
+  time, undershoot, settling, integral state, and recovery IAE rather than visual
+  judgement alone.
+- **Implementation:** `controller.py`, `stage5_main.py`, `plot_stage5.py`, and
+  `tests/test_stage5.py`.
+- **Verification:** Seven Stage 5 tests exercise the option at saturation, load
+  boundaries, full-cooling response, recovery criteria, conservation, bounds,
+  and time-step sensitivity. The full suite contains 52 tests.
+- **Quantitative result:** Both cases reach 100%. Anti-windup limits peak
+  integral state from 1827.3 to 629.8 degC s, exits saturation in 160 s instead
+  of 390 s, limits recovery undershoot to 0.612 instead of 2.996 degC, and
+  reduces recovery IAE from approximately 2127.9 to 879.7 degC s. Settling
+  improves from 1270 to 1170 s. All checks pass.
+- **Interpretation:** Holding integration when positive error cannot produce
+  additional cooling prevents excessive stored demand. The protected PI reduces
+  the full-output delay and low-temperature excursion after load recovery.
+- **Limitations and uncertainty:** This is one ideal deterministic overload,
+  not a real leaving-water-temperature safety study. It omits freezing
+  protection, sensor and actuator dynamics, rate limits, equipment cycling,
+  uncertainty, and measured plant data. Simulink cross-validation of exercised
+  anti-windup remains future work.
+- **Learner explanation checkpoint:** Explain saturation, why integral windup
+  occurs, why both cases initially reach 100%, and how release time, undershoot,
+  and recovery IAE show the benefit of conditional integration.
+
+Detailed definitions and results are in `docs/STAGE5_ENGINEERING_BASIS.md`.
+Raw evidence is in `results/stage5.csv` and `results/stage5_summary.csv`; the
+generated figure is `docs/stage5-anti-windup-results.svg`.
+
 ## Entry template
 
 ```markdown

@@ -13,14 +13,16 @@ Stage 4A compares proportional and PI control against explicit setpoint-response
 control-output, energy-conservation, and numerical-sensitivity criteria. Stage
 4B recreates the PI case in Simulink and compares its temperature, command, and
 integral-state samples with Python. Stage 5A exercises controller saturation
-and compares PI recovery with and without conditional anti-windup.
+and compares PI recovery with and without conditional anti-windup. Stage 5B
+rebuilds the exercised anti-windup case in Simulink and compares every state
+and output sample with Python.
 
 This is an independent learning simulation. It is not connected to physical equipment and does not represent any manufacturer's control software.
 
 ## Run the simulation
 
 The Python model uses only the standard library and has been tested with Python
-3.12.13. Stage 3B was developed for MATLAB R2024a with Simulink.
+3.12.13. The Simulink cross-validations were developed for MATLAB R2024a.
 
 From the project root:
 
@@ -93,6 +95,18 @@ then returns the load to 30 kW. It writes aligned protected and unprotected PI
 samples to `results/stage5.csv`, summary metrics to
 `results/stage5_summary.csv`, and the result figure to
 `docs/stage5-anti-windup-results.svg`.
+
+From MATLAB, rebuild and validate the Stage 5B anti-windup model with:
+
+```matlab
+addpath("matlab")
+build_stage5b_model
+run_stage5b_validation
+```
+
+The script compares all 361 protected PI samples for CHWS, CHWR, cooling
+fraction, and integral state. Each maximum absolute difference must be no
+greater than `1e-9` in the signal's native units.
 
 ## Demonstration scenario
 
@@ -187,9 +201,9 @@ The automated validation aligns 181 samples and checks CHWS, CHWR, applied
 cooling fraction, and integral state. The measured maximum differences and
 pass/fail result are preserved in `results/stage4b_summary.csv`.
 
-The defined load step never saturates the controller, so this cross-tool result
-covers normal PI operation. Conditional anti-windup remains verified by the
-Stage 4A Python saturation tests. The evidence boundary and limitations are in
+The defined load step never saturates the controller, so this Stage 4B result
+covers normal PI operation. The later Stage 5B experiment exercises saturation
+and cross-validates conditional anti-windup. The evidence boundary is in
 [Stage 4B Cross-Validation](docs/STAGE4B_CROSS_VALIDATION.md); operating steps
 are in [Stage 4B Tool Guide](docs/STAGE4B_TOOL_GUIDE.md).
 
@@ -213,6 +227,26 @@ The equations, defined overload, criteria, results, and limitations are in
 [Stage 5A Engineering Basis](docs/STAGE5_ENGINEERING_BASIS.md). The
 [Stage 5A Tool Guide](docs/STAGE5_TOOL_GUIDE.md) explains how to run and inspect
 the evidence.
+
+## Stage 5B result
+
+![Stage 5B Python-Simulink anti-windup comparison](docs/stage5b-python-simulink-comparison.png)
+
+The generated Simulink model applies the same conditional-integration rule as
+Python during the 120 kW overload and subsequent recovery. Relational and
+logical blocks detect when the unrestricted PI command is saturated and the
+current error would drive it farther outside the available range. A switch
+then holds or updates the integral state stored by a `Unit Delay` block.
+
+The automated validation aligns 361 samples and checks CHWS, CHWR, applied
+cooling fraction, and integral state. It also verifies the 160 s saturation
+release time and approximately 0.612 degC recovery undershoot. Maximum signal
+differences and the pass/fail result are preserved in
+`results/stage5b_summary.csv`.
+
+The method, scope, and limitations are in
+[Stage 5B Cross-Validation](docs/STAGE5B_CROSS_VALIDATION.md); operating steps
+are in [Stage 5B Tool Guide](docs/STAGE5B_TOOL_GUIDE.md).
 
 ## Control sequence
 
@@ -323,7 +357,7 @@ temperature change = 30 * 10 / (1000 * 4.18)
 
 ## Verification
 
-The test suite contains 52 test methods:
+The test suite contains 54 test methods:
 
 - 10 retained Stage 1 tests for proportional control, the energy balance, validation, and the original closed loop.
 - 5 cooling-permission tests for supported states, boundaries, invalid inputs, and a connected thermal example.
@@ -343,6 +377,9 @@ The test suite contains 52 test methods:
 - 7 Stage 5A tests for the anti-windup option, load-profile boundaries, balanced
   initial conditions, exercised saturation, recovery improvements, command and
   energy limits, and time-step sensitivity.
+- 2 Stage 5B evidence tests that read the preserved MATLAB CSV outputs and
+  enforce sample count, cross-tool signal limits, saturation-release time, and
+  recovery undershoot.
 
 Passing these scenarios verifies the stated educational model. It does not establish real-equipment performance, safety certification, or commissioning results.
 

@@ -300,8 +300,8 @@ Detailed scope and result interpretation are in
 - **Limitations and uncertainty:** This is one ideal deterministic overload,
   not a real leaving-water-temperature safety study. It omits freezing
   protection, sensor and actuator dynamics, rate limits, equipment cycling,
-  uncertainty, and measured plant data. Simulink cross-validation of exercised
-  anti-windup remains future work.
+  uncertainty, and measured plant data. Stage 5B separately addresses
+  cross-tool implementation agreement for this exercised scenario.
 - **Learner explanation checkpoint:** Explain saturation, why integral windup
   occurs, why both cases initially reach 100%, and how release time, undershoot,
   and recovery IAE show the benefit of conditional integration.
@@ -309,6 +309,60 @@ Detailed scope and result interpretation are in
 Detailed definitions and results are in `docs/STAGE5_ENGINEERING_BASIS.md`.
 Raw evidence is in `results/stage5.csv` and `results/stage5_summary.csv`; the
 generated figure is `docs/stage5-anti-windup-results.svg`.
+
+## EV-CHILLER-S5B-001 — Exercised anti-windup cross-validation
+
+- **Status:** Implemented and verified locally.
+- **Requirement and acceptance criterion:** Recreate the protected Stage 5A PI
+  response in Simulink with the same conditional-integration rule, plant,
+  gains, initial conditions, load profile, cooling limit, 10 s sample time, and
+  3600 s duration. Compare all 361 CHWS, CHWR, cooling-fraction, and integral-
+  state samples. Each maximum difference must be no greater than `1e-9` in its
+  native units; timestamps must agree within `1e-12 s`. Simulink must reproduce
+  the 160 s saturation-release time and the Stage 5A recovery undershoot within
+  `1e-9 degC`.
+- **Engineering question:** Does an independently assembled Simulink model
+  reproduce the Python anti-windup decision while the integral is actively held
+  at saturation and released during recovery?
+- **Theory:** The unrestricted command is `u_raw = Kp*e + Ki*I`. The output is
+  limited to 0 through 1. The next integral state remains `I` when
+  `(u_raw >= 1 and e > 0)` or `(u_raw <= 0 and e < 0)`; otherwise it becomes
+  `I + e*dt`.
+- **System boundary and assumptions:** Identical to Stage 5A: a 30 kW balanced
+  start, 120 kW overload from 600 to 1200 s, 30 kW recovery load, 100 kW cooling
+  capacity, fixed flow, ideal signals, and continuously permitted operation.
+- **Alternatives and trade-offs:** A built-in PID block could hide sample-time,
+  initialization, and anti-windup details. Standard arithmetic, logic, switch,
+  saturation, and delay blocks keep the implemented rule visible and directly
+  comparable with Python.
+- **Engineering decision:** Compare temperature, output, and internal integral
+  state at every sample. Include release time and undershoot so agreement covers
+  the recovery behaviour rather than only steady-state values.
+- **Implementation:** `matlab/build_stage5b_model.m`,
+  `matlab/stage5b_pi_anti_windup.slx`, and
+  `matlab/run_stage5b_validation.m`.
+- **Verification:** The MATLAB script asserts sample count, timestamp alignment,
+  four signal limits, release time, and undershoot before writing evidence. Two
+  Python tests independently read the preserved CSV outputs. The full suite
+  contains 54 tests.
+- **Quantitative result:** 361 samples are aligned. Maximum CHWS, CHWR,
+  cooling-fraction, and integral-state differences are recorded in
+  `results/stage5b_summary.csv` and each passes the `1e-9` limit. Simulink exits
+  high saturation 160 s after recovery and reproduces the approximately
+  0.612 degC CHWS undershoot.
+- **Interpretation:** Agreement supports consistent transfer of the exercised
+  conditional-integration decision, stored integral state, discrete timing, and
+  two-node plant equations between Python and Simulink.
+- **Limitations and uncertainty:** Both tools use the same simplified model and
+  ideal inputs. Agreement does not validate real equipment, freezing safety,
+  sensor or actuator dynamics, uncertain parameters, or commissioning results.
+- **Learner explanation checkpoint:** Explain the two hold conditions, why the
+  integral resumes after recovery, what `1/z` stores, and why comparing the
+  internal state detects errors that an output-only comparison can miss.
+
+Detailed scope is in `docs/STAGE5B_CROSS_VALIDATION.md`. Operating instructions
+are in `docs/STAGE5B_TOOL_GUIDE.md`. Raw evidence is in
+`results/stage5b_comparison.csv` and `results/stage5b_summary.csv`.
 
 ## Entry template
 

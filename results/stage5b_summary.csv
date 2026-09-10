@@ -1,0 +1,2 @@
+samples_compared,maximum_supply_error_c,maximum_return_error_c,maximum_cooling_fraction_error,maximum_integral_state_error_c_s,acceptance_limit,passed,saturation_release_time_s,recovery_undershoot_c,final_simulink_supply_c,final_simulink_return_c,final_simulink_cooling_fraction
+361,1.77635683940025e-15,1.77635683940025e-15,6.66133814775094e-16,1.13686837721616e-13,1e-09,1,160,0.612194491650127,7.00134678210805,8.43852392093137,0.300621588416641
